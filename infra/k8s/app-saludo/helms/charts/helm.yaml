@@ -1,0 +1,90 @@
+---
+# Source: helms/templates/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    name: dev-k8s-namespace
+  name: dev-k8s
+---
+# Source: helms/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-saludo-secret
+  namespace: dev-k8s
+type: Opaque
+data:
+  SECRET_MSG: a2FhIG5hYW1hIGZ0YWgnbiBjdGh1bGh1Cg==
+---
+# Source: helms/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-saludo-configmap
+  namespace: dev-k8s
+data:
+  english_message: Hello everyone!. I am a simple app and this is my route in english.
+---
+# Source: helms/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-saludo-service
+  namespace: dev-k8s
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 8081
+      targetPort: 8000
+  selector:
+    appName: app-saludo  # Potencia de helm: facilita trabajar con los campos "cruzados"
+---
+# Source: helms/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-saludo-deployment
+  namespace: dev-k8s
+  labels:
+    appName: app-saludo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      appName: app-saludo
+  template:
+    metadata:
+      labels:
+        appName: app-saludo
+    spec:
+      containers:
+      - name: app-saludo
+        image: flor35677653/app-saludo:v1
+        imagePullPolicy: Always
+        env:
+        - name: SECRETS_PATH
+          value: /run/secrets/app-saludo-secret/SECRET_MSG
+        - name: ENG_MSG
+          valueFrom:
+            configMapKeyRef:
+              name: app-saludo-configmap
+              key: english_message
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: 200Mi
+            cpu: 250m
+          limits:
+            memory: 2Gi
+            cpu: 500m
+        volumeMounts:
+        - name: secret-spell
+          mountPath: /run/secrets/app-saludo-secret
+          readOnly: true
+      volumes:
+      - name: secret-spell
+        secret:
+          secretName: app-saludo-secret

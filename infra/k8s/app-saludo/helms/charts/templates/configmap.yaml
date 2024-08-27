@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.app.name }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  english_message: {{ .Values.configMap.english_message }}

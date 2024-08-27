@@ -1,0 +1,68 @@
+---
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appCargo.name}}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+  {{- toYaml .Values.appCargo.labels | nindent 4 }}
+spec:
+  replicas: {{ .Values.appCargo.replicasCount }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.appCargo.labels | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- toYaml .Values.appCargo.labels | nindent 8 }}
+    spec:
+      containers:
+      - name: {{ .Values.appCargo.name }}
+        image: {{ .Values.appCargo.image }}
+        imagePullPolicy: {{ .Values.appCargo.pullPolicy }}
+        command:
+        {{- toYaml .Values.appCargo.command | nindent 8 }}
+        args:
+        {{- toYaml .Values.appCargo.args | nindent 8 }}
+        env: 
+        {{- toYaml .Values.appCargo.envs | nindent 10 }}
+        volumeMounts: 
+        {{- toYaml .Values.appCargo.volumeMounts | default "" | nindent 10 }} 
+        ports:
+        - containerPort: {{ .Values.appCargo.containerPort }}
+      volumes: 
+      {{- toYaml .Values.appCargo.volumes | default "" | nindent 10 }}
+      imagePullSecrets:
+      - name: {{ .Values.appCargo.secrets.name }}-key 
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appDB.name}}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- toYaml .Values.appDB.labels | nindent 4 }}
+spec:
+  replicas: {{ .Values.appDB.replicasCount }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.appDB.labels | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- toYaml .Values.appDB.labels | nindent 8 }}
+    spec:
+      containers:
+      - name: {{ .Values.appDB.name }}
+        image: {{ .Values.appDB.image }}
+        imagePullPolicy: {{ .Values.appDB.pullPolicy }}
+        env:
+        {{- toYaml .Values.appDB.envs | nindent 8 }}
+        ports:
+        - containerPort: {{ .Values.appDB.containerPort}}
+        volumeMounts:
+        {{- toYaml .Values.appDB.volumeMounts | default "" | nindent 10 }} 
+      volumes:
+      {{- toYaml .Values.appDB.volumes | default "" | nindent 10 }} 

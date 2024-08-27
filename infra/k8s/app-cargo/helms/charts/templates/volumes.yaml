@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.appDB.postgres.name}}-volume
+  labels:
+  {{- toYaml .Values.appDB.postgres.labels | nindent 4 }}
+spec:
+  accessModes: {{ .Values.appDB.postgres.volumeSpec.accessModes}}
+  capacity: 
+    storage: {{ .Values.appDB.postgres.volumeSpec.storage}}
+  hostPath:
+    path: {{ .Values.appDB.postgres.volumeSpec.hostPath}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.appDB.postgres.name }}-volume-claim
+  namespace: {{ .Values.namespace }}
+  labels: 
+  {{- toYaml .Values.appDB.postgres.labels | nindent 4 }}
+spec:
+  accessModes: {{ .Values.appDB.postgres.claimVolumeSpec.accessModes}}
+  storageClassName: ""
+  volumeName: {{ .Values.appDB.postgres.name }}-volume
+  resources:
+    requests:
+      storage: {{ .Values.appDB.postgres.claimVolumeSpec.storage}}

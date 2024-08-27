@@ -1,0 +1,203 @@
+---
+# Source: helms/templates/namespace.yaml
+apiVersion: v1 
+kind: Namespace
+metadata: 
+  labels:
+    name: prod-k8s-namespace 
+  name: prod-k8s
+---
+# Source: helms/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-db-secret
+  namespace: prod-k8s
+type: Opaque
+data:
+  HOST_CONNECTION: cG9zdGdyZXNxbDovL3Byb2RfdXNlcjpwcm9kX3Bhc3NAYXBwLWRiLXNlcnZpY2UvQ0FSR08=
+  POSTGRES_DB: Q0FSR08=
+  POSTGRES_PASSWORD: cHJvZF9wYXNz
+  POSTGRES_PORT: NTQzMg==
+  POSTGRES_USER: cHJvZF91c2Vy
+---
+# Source: helms/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-cargo-secret
+  namespace: prod-k8s
+type: Opaque
+data:
+  HOST_CONNECTION: cG9zdGdyZXNxbDovL3Byb2RfdXNlcjpwcm9kX3Bhc3NAYXBwLWRiLXNlcnZpY2UvQ0FSR08=
+---
+# Source: helms/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-registry-key
+  namespace: prod-k8s
+data:
+  .dockerconfigjson: ewoJImF1dGhzIjogewoJCSJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOiB7CgkJCSJhdXRoIjogIlpteHZjak0xTmpjM05qVXpPa1pzYjNJek9EQXdNREl4T1E9PSIKCQl9LAoJCSJyZWdpc3RyeS50ZXN0LmRldnZpby5jb20iOiB7CgkJCSJhdXRoIjogIlpHVjJkbWx2Y21Wbk9tTmpPR0l3TWpVNE1ERTFNbUUwWlRRNFpEWXhPVGd3WWpnM09UTmtOVEEwIgoJCX0KCX0KfQ==
+type: kubernetes.io/dockerconfigjson
+---
+# Source: helms/templates/volumes.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: app-db-postgres-prod-volume
+  labels:
+    app: postgres-prod
+spec:
+  accessModes: [ReadWriteMany]
+  capacity: 
+    storage: 10Gi
+  hostPath:
+    path: /data/postgresql_1
+---
+# Source: helms/templates/volumes.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-db-postgres-prod-volume-claim
+  namespace: prod-k8s
+  labels:
+    app: postgres-prod
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: ""
+  volumeName: app-db-postgres-prod-volume
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: helms/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-db-service
+  namespace: prod-k8s
+spec:
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: app-db-sycm
+---
+# Source: helms/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-cargo-service
+  namespace: prod-k8s
+spec:
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: app-cargo-sycm
+---
+# Source: helms/templates/deployment.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-cargo-deployment
+  namespace: prod-k8s
+  labels:
+    app: app-cargo-sycm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-cargo-sycm
+  template:
+    metadata:
+      labels:
+        app: app-cargo-sycm
+    spec:
+      containers:
+      - name: app-cargo
+        image: flor35677653/app-db-cargo:v1.0.2
+        imagePullPolicy: Always
+        command:
+        - /bin/sh
+        - -c
+        args:
+        - cd app/database && alembic upgrade head && cd .. && fastapi run main.py --port 8080
+          --reload --root-path /app-cargo
+        env:
+          - name: HOST_CONNECTION_PATH
+            value: /run/secrets/app-cargo-secret/HOST_CONNECTION
+        volumeMounts:
+          - mountPath: /run/secrets/app-cargo-secret
+            name: secret-cargo
+            readOnly: true 
+        ports:
+        - containerPort: 8080
+      volumes:
+          - name: secret-cargo
+            secret:
+              secretName: app-cargo-secret
+      imagePullSecrets:
+      - name: my-registry-key
+---
+# Source: helms/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-db-deployment
+  namespace: prod-k8s
+  labels:
+    app: app-db-sycm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-db-sycm
+  template:
+    metadata:
+      labels:
+        app: app-db-sycm
+    spec:
+      containers:
+      - name: app-db
+        image: postgres:alpine3.20
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_USER
+              name: app-db-secret
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_DB
+              name: app-db-secret
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_PASSWORD
+              name: app-db-secret
+        - name: POSTGRES_PORT
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_PORT
+              name: app-db-secret
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+          - mountPath: /var/lib/postgresql_1/data
+            name: postgresproddata 
+      volumes:
+          - name: secret-prod-spell
+            secret:
+              secretName: app-db-secret
+          - name: postgresproddata
+            persistentVolumeClaim:
+              claimName: app-db-postgres-prod-volume-claim

@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prod-k8s-ingress
+  namespace: prod-k8s
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: diplo.project.prod
+    http:
+      paths:
+      - path: /app-cargo(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: app-cargo-service
+            port:
+              number: 8080
+      - path: /app-saludo(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: app-saludo-service
+            port:
+              number: 8081
+---

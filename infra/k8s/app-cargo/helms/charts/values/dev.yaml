@@ -1,0 +1,100 @@
+namespace: dev-k8s
+
+appCargo:
+  name: app-cargo
+  maintainer: grupo1
+  replicasCount: 1
+  containerPort: 8080
+  image: flor35677653/app-db-cargo:v1.0.2
+  pullPolicy: Always
+  labels: { app: app-cargo-sycm }
+  command:
+  - "/bin/sh"
+  - "-c"
+  args: 
+  - "cd app/database && alembic upgrade head && cd .. && fastapi run main.py --port 8080 --reload --root-path /app-cargo"
+  envs:
+  - name: HOST_CONNECTION_PATH
+    value: "/run/secrets/app-cargo-secret/HOST_CONNECTION"
+  volumeMounts:
+  - name: secret-cargo
+    mountPath: "/run/secrets/app-cargo-secret"
+    readOnly: true
+  volumes:
+  - name: secret-cargo
+    secret:
+      secretName: app-cargo-secret
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+  secrets:
+    type: Opaque
+    data:
+      HOST_CONNECTION: cG9zdGdyZXNxbDovL2FwcF91c2VyOmFwcF9wYXNzQGFwcC1kYi1zZXJ2aWNlL0NBUkdP
+    name: my-registry
+    dockerConfig: ewoJImF1dGhzIjogewoJCSJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOiB7CgkJCSJhdXRoIjogIlpteHZjak0xTmpjM05qVXpPa1pzYjNJek9EQXdNREl4T1E9PSIKCQl9LAoJCSJyZWdpc3RyeS50ZXN0LmRldnZpby5jb20iOiB7CgkJCSJhdXRoIjogIlpHVjJkbWx2Y21Wbk9tTmpPR0l3TWpVNE1ERTFNbUUwWlRRNFpEWXhPVGd3WWpnM09UTmtOVEEwIgoJCX0KCX0KfQ==
+
+appDB:
+  name: app-db
+  maintainer: grupo1
+  replicasCount: 1
+  containerPort: 5432
+  image: postgres:alpine3.20
+  pullPolicy: Always
+  labels: { app: app-db-sycm }
+  envs:
+  - name: POSTGRES_USER
+    valueFrom:
+      secretKeyRef:
+        name: app-db-secret
+        key: POSTGRES_USER
+  - name: POSTGRES_DB
+    valueFrom:
+      secretKeyRef:
+        name: app-db-secret
+        key: POSTGRES_DB
+  - name: POSTGRES_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: app-db-secret
+        key: POSTGRES_PASSWORD
+  - name: POSTGRES_PORT
+    valueFrom:
+      secretKeyRef:
+        name: app-db-secret
+        key: POSTGRES_PORT
+  volumeMounts:
+  - name: postgresdata
+    mountPath: /var/lib/postgresql/data
+  volumes:
+  - name: secret-spell
+    secret:
+      secretName: app-db-secret
+  - name: postgresdata
+    persistentVolumeClaim:
+      claimName: app-db-postgres-volume-claim
+  service:
+    type: NodePort
+    port: 5432
+    targetPort: 5432
+  secrets:
+    type: Opaque
+    data:
+      POSTGRES_USER: YXBwX3VzZXI=
+      POSTGRES_DB: Q0FSR08=
+      POSTGRES_PASSWORD: YXBwX3Bhc3M=
+      POSTGRES_PORT: NTQzMg==
+      HOST_CONNECTION: cG9zdGdyZXNxbDovL2FwcF91c2VyOmFwcF9wYXNzQGFwcC1kYi1zZXJ2aWNlL0NBUkdP
+  postgres:
+    name: app-db-postgres
+    labels: { app: postgres }
+    volumeSpec:
+      accessModes:
+        - ReadWriteMany
+      storage: 5Gi
+      hostPath: /data/postgresql
+    claimVolumeSpec:
+      accessModes:
+        - ReadWriteMany
+      storage: 5Gi
